@@ -1,23 +1,30 @@
-# Use Node.js 16 slim as the base image
-FROM node:16-slim
+# Stage 1: Build the React application
+FROM node:20-alpine AS build
 
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
-# Copy package.json and package-lock.json to the working directory
+# Copy dependency files first
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install
+RUN npm ci
 
-# Copy the rest of the application code
+# Copy application source
 COPY . .
 
-# Build the React app
+# Create production build
 RUN npm run build
 
-# Expose port 3000 (or the port your app is configured to listen on)
-EXPOSE 3000
 
-# Start your Node.js server (assuming it serves the React app)  
-CMD ["npm", "start"]
+# Stage 2: Serve the application using Nginx
+FROM nginx:alpine
+
+# Copy React production build into Nginx
+COPY --from=build /app/build /usr/share/nginx/html
+
+# Expose HTTP port
+EXPOSE 80
+
+# Start Nginx
+CMD ["nginx", "-g", "daemon off;"]
